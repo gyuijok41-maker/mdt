@@ -14,7 +14,7 @@
         button { background: #0095f6; color: white; font-weight: bold; cursor: pointer; }
         .username-preview { margin-top: 8px; font-size: 13px; color: #0095f6; font-weight: 600; text-align: left; padding-left: 5px; min-height: 18px; }
         .avatar-picker { display: flex; justify-content: space-around; margin: 15px 0; }
-        .avatar-option { width: 50px; height: 50px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; object-fit: cover; }
+        .avatar-option { width: 50px; height: 50px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; background: #262626; }
         .avatar-option.selected { border-color: #0095f6; }
         #chat-screen { display: none; width: 100%; max-width: 935px; height: 100vh; background: #000; }
         @media (min-width: 600px) { #chat-screen { height: 90vh; border: 1px solid #262626; border-radius: 12px; } }
@@ -22,7 +22,7 @@
         .sidebar { width: 40%; border-right: 1px solid #262626; display: flex; flex-direction: column; background: #000; }
         @media (min-width: 600px) { .sidebar { width: 35%; } }
         .my-profile { padding: 15px; border-bottom: 1px solid #262626; display: flex; align-items: center; gap: 10px; }
-        .avatar-img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; background: #262626; }
+        .avatar-img { width: 40px; height: 40px; border-radius: 50%; background: #262626; display: inline-block; vertical-align: middle; font-size: 20px; text-align: center; line-height: 40px; text-transform: uppercase; border: 1px solid #333; }
         .search-box { padding: 10px 15px; border-bottom: 1px solid #121212; }
         .search-box input { margin: 0; padding: 8px 12px; background: #121212; border-radius: 8px; }
         .section-title { padding: 12px 15px 5px 15px; font-size: 12px; color: #8e8e8e; font-weight: bold; }
@@ -52,10 +52,10 @@
         <input type="text" id="username-input" placeholder="Введите ваш ник..." maxlength="15" oninput="previewUserTag()">
         <div class="username-preview" id="user-tag-preview"></div>
         <div class="avatar-picker">
-            <img src="https://picsum.photos/id/64/100" class="avatar-option selected" onclick="selectAvatar(this)">
-            <img src="https://picsum.photos/id/91/100" class="avatar-option" onclick="selectAvatar(this)">
-            <img src="https://picsum.photos/id/32/100" class="avatar-option" onclick="selectAvatar(this)">
-            <img src="https://picsum.photos/id/103/100" class="avatar-option" onclick="selectAvatar(this)">
+            <div class="avatar-option selected" data-emoji="🐱" onclick="selectAvatar(this)" style="font-size:30px; text-align:center; line-height:50px;">🐱</div>
+            <div class="avatar-option" data-emoji="🦊" onclick="selectAvatar(this)" style="font-size:30px; text-align:center; line-height:50px;">🦊</div>
+            <div class="avatar-option" data-emoji="🐸" onclick="selectAvatar(this)" style="font-size:30px; text-align:center; line-height:50px;">🐸</div>
+            <div class="avatar-option" data-emoji="🥷" onclick="selectAvatar(this)" style="font-size:30px; text-align:center; line-height:50px;">🥷</div>
         </div>
         <button onclick="login()">Войти в сеть</button>
     </div>
@@ -64,18 +64,18 @@
         <div class="chat-layout">
             <div class="sidebar">
                 <div class="my-profile">
-                    <img id="my-avatar" class="avatar-img" src="">
+                    <div id="my-avatar" class="avatar-img"></div>
                     <span id="my-username" style="font-weight: bold; font-size: 14px; word-break: break-all;"></span>
                 </div>
                 <div class="search-box">
-                    <input type="text" id="search-input" placeholder="Поиск по @юзу..." oninput="searchPeople()">
+                    <input type="text" id="search-input" placeholder="Поиск по нику..." oninput="searchPeople()">
                 </div>
                 <div class="section-title" id="list-title">ДИАЛОГИ:</div>
                 <div class="users-list-container" id="sidebar-users"></div>
             </div>
             <div class="chat-area">
                 <div class="chat-header">
-                    <img id="chat-with-avatar" class="avatar-img" src="" style="display: none;">
+                    <div id="chat-with-avatar" class="avatar-img" style="display: none;"></div>
                     <span id="chat-with-name">Выберите чат</span>
                 </div>
                 <div class="messages-box" id="messages-box"></div>
@@ -95,11 +95,10 @@
         const database = firebase.database();
 
         let myUserTag = "";
-        let myAvatarUrl = "https://picsum.photos/id/64/100";
+        let myAvatarUrl = "🐱";
         let activeChatUser = null;
         let globalUsersList = {};
 
-        // Проверяем, заходил ли пользователь ранее
         window.onload = function() {
             const savedTag = localStorage.getItem('mtd_user_tag');
             const savedAvatar = localStorage.getItem('mtd_user_avatar');
@@ -121,7 +120,7 @@
         function selectAvatar(element) {
             document.querySelectorAll('.avatar-option').forEach(el => el.classList.remove('selected'));
             element.classList.add('selected');
-            myAvatarUrl = element.src;
+            myAvatarUrl = element.getAttribute('data-emoji');
         }
 
         function login() {
@@ -129,7 +128,6 @@
             if (!rawInput) return alert("Придумайте ник!");
             myUserTag = `${rawInput}mdt`;
 
-            // Сохраняем данные в память браузера (навсегда)
             localStorage.setItem('mtd_user_tag', myUserTag);
             localStorage.setItem('mtd_user_avatar', myAvatarUrl);
 
@@ -137,7 +135,6 @@
         }
 
         function startSession() {
-            // Регистрируем в Firebase
             database.ref('users/' + myUserTag).set({
                 avatar: myAvatarUrl,
                 lastSeen: Date.now()
@@ -147,20 +144,20 @@
 
             document.getElementById('auth-screen').style.display = 'none';
             document.getElementById('chat-screen').style.display = 'flex';
-            document.getElementById('my-avatar').src = myAvatarUrl;
+            document.getElementById('my-avatar').innerText = myAvatarUrl;
             document.getElementById('my-username').innerText = `@${myUserTag}`;
 
             setInterval(() => {
                 database.ref('users/' + myUserTag + '/lastSeen').set(Date.now());
             }, 2000);
 
+            // Слушаем изменения пользователей
             database.ref('users').on('value', (snapshot) => {
                 globalUsersList = snapshot.val() || {};
-                if (!document.getElementById('search-input').value.trim()) {
-                    renderDialogsList(globalUsersList);
-                }
+                renderDialogsList();
             });
 
+            // Слушаем новые сообщения глобально
             database.ref('chats').on('value', () => {
                 if (activeChatUser) {
                     renderMessages();
@@ -169,32 +166,31 @@
         }
 
         function searchPeople() {
-            const query = document.getElementById('search-input').value.trim().toLowerCase().replace('@', '');
-            if (!query) {
-                renderDialogsList(globalUsersList);
-                return;
-            }
-            renderDialogsList(globalUsersList, query);
+            renderDialogsList();
         }
 
-        function renderDialogsList(users, filterQuery = "") {
+        function renderDialogsList() {
             const container = document.getElementById('sidebar-users');
+            const query = document.getElementById('search-input').value.trim().toLowerCase().replace('@', '');
             container.innerHTML = '';
             let count = 0;
 
-            for (let tag in users) {
+            for (let tag in globalUsersList) {
                 if (tag === myUserTag) continue;
-                if (filterQuery && !tag.includes(filterQuery)) continue;
+                
+                // Если есть поисковый запрос, проверяем совпадение по всему юзернейму
+                if (query && !tag.includes(query)) continue;
 
                 count++;
                 const activeClass = tag === activeChatUser ? 'active' : '';
-                const isOnline = (Date.now() - users[tag].lastSeen < 6000);
+                const isOnline = (Date.now() - globalUsersList[tag].lastSeen < 6000);
                 const statusColor = isOnline ? '#0095f6' : '#555';
                 const statusText = isOnline ? '● в сети' : 'офлайн';
+                const userAvatar = globalUsersList[tag].avatar || "👤";
 
                 const item = `
-                    <div class="user-item ${activeClass}" onclick="startChat('${tag}', '${users[tag].avatar}')">
-                        <img class="avatar-img" src="${users[tag].avatar}">
+                    <div class="user-item ${activeClass}" onclick="startChat('${tag}', '${userAvatar}')">
+                        <div class="avatar-img">${userAvatar}</div>
                         <div class="user-info">
                             <span style="font-weight:600; font-size:13px;">@${tag}</span>
                             <span style="font-size:11px; color:${statusColor}">${statusText}</span>
@@ -205,7 +201,7 @@
             }
 
             if(count === 0) {
-                container.innerHTML = `<div style="padding:20px; color:#555; font-size:13px; text-align:center;">Пусто</div>`;
+                container.innerHTML = `<div style="padding:20px; color:#555; font-size:13px; text-align:center;">Пользователь не найден.<br>Убедитесь, что он вошел в сеть.</div>`;
             }
         }
 
@@ -213,8 +209,8 @@
             activeChatUser = userTag;
             document.getElementById('chat-with-name').innerText = `@${userTag}`;
             const headerAvatar = document.getElementById('chat-with-avatar');
-            headerAvatar.src = avatar;
-            headerAvatar.style.display = 'block';
+            headerAvatar.innerText = avatar;
+            headerAvatar.style.display = 'inline-block';
             renderMessages();
         }
 
