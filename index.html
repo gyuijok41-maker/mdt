@@ -7,7 +7,7 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         body { background: #000; color: #fff; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
-        #auth-screen { background: #121212; padding: 30px; border-radius: 12px; width: 100%; max-width: 400px; text-align: center; border: 1px solid #262626; margin: 10px; }
+        #auth-screen { display: none; background: #121212; padding: 30px; border-radius: 12px; width: 100%; max-width: 400px; text-align: center; border: 1px solid #262626; margin: 10px; }
         .logo { font-size: 36px; font-weight: bold; margin-bottom: 20px; font-style: italic; background: linear-gradient(45deg, #f09433, #bc1888); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
         input, button { width: 100%; padding: 12px; margin-top: 15px; border-radius: 8px; border: none; outline: none; }
         input { background: #000; color: #fff; border: 1px solid #262626; font-size: 14px; }
@@ -41,7 +41,6 @@
         .chat-footer input { margin: 0; background: #121212; border-radius: 20px; padding: 10px 15px; }
         .chat-footer button { margin: 0; width: auto; padding: 0 20px; border-radius: 20px; }
     </style>
-    <!-- Подключаем Firebase напрямую -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 </head>
@@ -89,7 +88,6 @@
     </div>
 
     <script>
-        // Подключаем готовую глобальную открытую базу данных для МТД чата
         const firebaseConfig = {
             databaseURL: "https://mtd-chat-default-rtdb.europe-west1.firebasedatabase.app"
         };
@@ -100,6 +98,20 @@
         let myAvatarUrl = "https://picsum.photos/id/64/100";
         let activeChatUser = null;
         let globalUsersList = {};
+
+        // Проверяем, заходил ли пользователь ранее
+        window.onload = function() {
+            const savedTag = localStorage.getItem('mtd_user_tag');
+            const savedAvatar = localStorage.getItem('mtd_user_avatar');
+
+            if (savedTag && savedAvatar) {
+                myUserTag = savedTag;
+                myAvatarUrl = savedAvatar;
+                startSession();
+            } else {
+                document.getElementById('auth-screen').style.display = 'block';
+            }
+        };
 
         function previewUserTag() {
             const input = document.getElementById('username-input').value.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -117,13 +129,20 @@
             if (!rawInput) return alert("Придумайте ник!");
             myUserTag = `${rawInput}mdt`;
 
-            // Сохраняем себя в базу данных в облаке
+            // Сохраняем данные в память браузера (навсегда)
+            localStorage.setItem('mtd_user_tag', myUserTag);
+            localStorage.setItem('mtd_user_avatar', myAvatarUrl);
+
+            startSession();
+        }
+
+        function startSession() {
+            // Регистрируем в Firebase
             database.ref('users/' + myUserTag).set({
                 avatar: myAvatarUrl,
                 lastSeen: Date.now()
             });
 
-            // Отмечаем, что мы в сети прямо сейчас
             database.ref('users/' + myUserTag + '/lastSeen').onDisconnect().set(0);
 
             document.getElementById('auth-screen').style.display = 'none';
@@ -131,12 +150,10 @@
             document.getElementById('my-avatar').src = myAvatarUrl;
             document.getElementById('my-username').innerText = `@${myUserTag}`;
 
-            // Постоянно обновляем статус "онлайн" раз в 2 секунды
             setInterval(() => {
                 database.ref('users/' + myUserTag + '/lastSeen').set(Date.now());
             }, 2000);
 
-            // Слушаем изменения всех пользователей в реальном времени
             database.ref('users').on('value', (snapshot) => {
                 globalUsersList = snapshot.val() || {};
                 if (!document.getElementById('search-input').value.trim()) {
@@ -144,7 +161,6 @@
                 }
             });
 
-            // Слушаем новые сообщения
             database.ref('chats').on('value', () => {
                 if (activeChatUser) {
                     renderMessages();
@@ -204,10 +220,8 @@
 
         function renderMessages() {
             const box = document.getElementById('messages-box');
-            box.innerHTML = '';
             if (!activeChatUser) return;
 
-            // Генерируем уникальный ID комнаты для двух пользователей (чтобы история была общей)
             const chatId = myUserTag < activeChatUser ? `${myUserTag}_${activeChatUser}` : `${activeChatUser}_${myUserTag}`;
 
             database.ref('chats/' + chatId).once('value', (snapshot) => {
@@ -232,7 +246,6 @@
 
             const chatId = myUserTag < activeChatUser ? `${myUserTag}_${activeChatUser}` : `${activeChatUser}_${myUserTag}`;
 
-            // Закидываем сообщение прямо в облако Google
             database.ref('chats/' + chatId).push({
                 from: myUserTag,
                 text: text,
