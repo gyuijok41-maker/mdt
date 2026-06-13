@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>МТД - Живой Интернет Директ</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background: #000; color: #fff; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+        #auth-screen { background: #121212; padding: 30px; border-radius: 12px; width: 100%; max-width: 400px; text-align: center; border: 1px solid #262626; margin: 10px; }
+        .logo { font-size: 36px; font-weight: bold; margin-bottom: 20px; font-style: italic; background: linear-gradient(45deg, #f09433, #bc1888); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        input, button { width: 100%; padding: 12px; margin-top: 15px; border-radius: 8px; border: none; outline: none; }
+        input { background: #000; color: #fff; border: 1px solid #262626; font-size: 14px; }
+        button { background: #0095f6; color: white; font-weight: bold; cursor: pointer; }
+        .username-preview { margin-top: 8px; font-size: 13px; color: #0095f6; font-weight: 600; text-align: left; padding-left: 5px; min-height: 18px; }
+        .avatar-picker { display: flex; justify-content: space-around; margin: 15px 0; }
+        .avatar-option { width: 50px; height: 50px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; object-fit: cover; }
+        .avatar-option.selected { border-color: #0095f6; }
+        #chat-screen { display: none; width: 100%; max-width: 935px; height: 100vh; background: #000; }
+        @media (min-width: 600px) { #chat-screen { height: 90vh; border: 1px solid #262626; border-radius: 12px; } }
+        .chat-layout { display: flex; height: 100%; }
+        .sidebar { width: 40%; border-right: 1px solid #262626; display: flex; flex-direction: column; background: #000; }
+        @media (min-width: 600px) { .sidebar { width: 35%; } }
+        .my-profile { padding: 15px; border-bottom: 1px solid #262626; display: flex; align-items: center; gap: 10px; }
+        .avatar-img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; background: #262626; }
+        .search-box { padding: 10px 15px; border-bottom: 1px solid #121212; }
+        .search-box input { margin: 0; padding: 8px 12px; background: #121212; border-radius: 8px; }
+        .section-title { padding: 12px 15px 5px 15px; font-size: 12px; color: #8e8e8e; font-weight: bold; }
+        .users-list-container { overflow-y: auto; flex-grow: 1; }
+        .user-item { display: flex; align-items: center; padding: 12px 15px; cursor: pointer; gap: 12px; border-bottom: 1px solid #121212; }
+        .user-item:hover, .user-item.active { background: #121212; }
+        .user-info { display: flex; flex-direction: column; }
+        .chat-area { width: 60%; display: flex; flex-direction: column; background: #000; }
+        @media (min-width: 600px) { .chat-area { width: 65%; } }
+        .chat-header { padding: 15px; border-bottom: 1px solid #262626; font-weight: bold; display: flex; align-items: center; gap: 10px; }
+        .messages-box { flex-grow: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        .msg { max-width: 75%; padding: 10px 14px; border-radius: 18px; font-size: 14px; word-wrap: break-word; line-height: 1.4; }
+        .msg.sent { background: #3797f0; color: #fff; align-self: flex-end; }
+        .msg.received { background: #262626; color: #fff; align-self: flex-start; }
+        .chat-footer { padding: 15px; border-top: 1px solid #262626; display: flex; gap: 10px; background: #000; }
+        .chat-footer input { margin: 0; background: #121212; border-radius: 20px; padding: 10px 15px; }
+        .chat-footer button { margin: 0; width: auto; padding: 0 20px; border-radius: 20px; }
+    </style>
+    <!-- Подключаем Firebase напрямую -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+</head>
+<body>
+
+    <div id="auth-screen">
+        <div class="logo">мтд</div>
+        <h3>Создать аккаунт</h3>
+        <input type="text" id="username-input" placeholder="Введите ваш ник..." maxlength="15" oninput="previewUserTag()">
+        <div class="username-preview" id="user-tag-preview"></div>
+        <div class="avatar-picker">
+            <img src="https://picsum.photos/id/64/100" class="avatar-option selected" onclick="selectAvatar(this)">
+            <img src="https://picsum.photos/id/91/100" class="avatar-option" onclick="selectAvatar(this)">
+            <img src="https://picsum.photos/id/32/100" class="avatar-option" onclick="selectAvatar(this)">
+            <img src="https://picsum.photos/id/103/100" class="avatar-option" onclick="selectAvatar(this)">
+        </div>
+        <button onclick="login()">Войти в сеть</button>
+    </div>
+
+    <div id="chat-screen">
+        <div class="chat-layout">
+            <div class="sidebar">
+                <div class="my-profile">
+                    <img id="my-avatar" class="avatar-img" src="">
+                    <span id="my-username" style="font-weight: bold; font-size: 14px; word-break: break-all;"></span>
+                </div>
+                <div class="search-box">
+                    <input type="text" id="search-input" placeholder="Поиск по @юзу..." oninput="searchPeople()">
+                </div>
+                <div class="section-title" id="list-title">ДИАЛОГИ:</div>
+                <div class="users-list-container" id="sidebar-users"></div>
+            </div>
+            <div class="chat-area">
+                <div class="chat-header">
+                    <img id="chat-with-avatar" class="avatar-img" src="" style="display: none;">
+                    <span id="chat-with-name">Выберите чат</span>
+                </div>
+                <div class="messages-box" id="messages-box"></div>
+                <div class="chat-footer">
+                    <input type="text" id="message-input" placeholder="Сообщение...">
+                    <button onclick="sendMessage()">ОТП</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Подключаем готовую глобальную открытую базу данных для МТД чата
+        const firebaseConfig = {
+            databaseURL: "https://mtd-chat-default-rtdb.europe-west1.firebasedatabase.app"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        let myUserTag = "";
+        let myAvatarUrl = "https://picsum.photos/id/64/100";
+        let activeChatUser = null;
+        let globalUsersList = {};
+
+        function previewUserTag() {
+            const input = document.getElementById('username-input').value.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+            document.getElementById('user-tag-preview').innerText = input ? `@${input}mdt` : '';
+        }
+
+        function selectAvatar(element) {
+            document.querySelectorAll('.avatar-option').forEach(el => el.classList.remove('selected'));
+            element.classList.add('selected');
+            myAvatarUrl = element.src;
+        }
+
+        function login() {
+            const rawInput = document.getElementById('username-input').value.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (!rawInput) return alert("Придумайте ник!");
+            myUserTag = `${rawInput}mdt`;
+
+            // Сохраняем себя в базу данных в облаке
+            database.ref('users/' + myUserTag).set({
+                avatar: myAvatarUrl,
+                lastSeen: Date.now()
+            });
+
+            // Отмечаем, что мы в сети прямо сейчас
+            database.ref('users/' + myUserTag + '/lastSeen').onDisconnect().set(0);
+
+            document.getElementById('auth-screen').style.display = 'none';
+            document.getElementById('chat-screen').style.display = 'flex';
+            document.getElementById('my-avatar').src = myAvatarUrl;
+            document.getElementById('my-username').innerText = `@${myUserTag}`;
+
+            // Постоянно обновляем статус "онлайн" раз в 2 секунды
+            setInterval(() => {
+                database.ref('users/' + myUserTag + '/lastSeen').set(Date.now());
+            }, 2000);
+
+            // Слушаем изменения всех пользователей в реальном времени
+            database.ref('users').on('value', (snapshot) => {
+                globalUsersList = snapshot.val() || {};
+                if (!document.getElementById('search-input').value.trim()) {
+                    renderDialogsList(globalUsersList);
+                }
+            });
+
+            // Слушаем новые сообщения
+            database.ref('chats').on('value', () => {
+                if (activeChatUser) {
+                    renderMessages();
+                }
+            });
+        }
+
+        function searchPeople() {
+            const query = document.getElementById('search-input').value.trim().toLowerCase().replace('@', '');
+            if (!query) {
+                renderDialogsList(globalUsersList);
+                return;
+            }
+            renderDialogsList(globalUsersList, query);
+        }
+
+        function renderDialogsList(users, filterQuery = "") {
+            const container = document.getElementById('sidebar-users');
+            container.innerHTML = '';
+            let count = 0;
+
+            for (let tag in users) {
+                if (tag === myUserTag) continue;
+                if (filterQuery && !tag.includes(filterQuery)) continue;
+
+                count++;
+                const activeClass = tag === activeChatUser ? 'active' : '';
+                const isOnline = (Date.now() - users[tag].lastSeen < 6000);
+                const statusColor = isOnline ? '#0095f6' : '#555';
+                const statusText = isOnline ? '● в сети' : 'офлайн';
+
+                const item = `
+                    <div class="user-item ${activeClass}" onclick="startChat('${tag}', '${users[tag].avatar}')">
+                        <img class="avatar-img" src="${users[tag].avatar}">
+                        <div class="user-info">
+                            <span style="font-weight:600; font-size:13px;">@${tag}</span>
+                            <span style="font-size:11px; color:${statusColor}">${statusText}</span>
+                        </div>
+                    </div>
+                `;
+                container.insertAdjacentHTML('beforeend', item);
+            }
+
+            if(count === 0) {
+                container.innerHTML = `<div style="padding:20px; color:#555; font-size:13px; text-align:center;">Пусто</div>`;
+            }
+        }
+
+        function startChat(userTag, avatar) {
+            activeChatUser = userTag;
+            document.getElementById('chat-with-name').innerText = `@${userTag}`;
+            const headerAvatar = document.getElementById('chat-with-avatar');
+            headerAvatar.src = avatar;
+            headerAvatar.style.display = 'block';
+            renderMessages();
+        }
+
+        function renderMessages() {
+            const box = document.getElementById('messages-box');
+            box.innerHTML = '';
+            if (!activeChatUser) return;
+
+            // Генерируем уникальный ID комнаты для двух пользователей (чтобы история была общей)
+            const chatId = myUserTag < activeChatUser ? `${myUserTag}_${activeChatUser}` : `${activeChatUser}_${myUserTag}`;
+
+            database.ref('chats/' + chatId).once('value', (snapshot) => {
+                const messages = snapshot.val() || {};
+                box.innerHTML = '';
+                
+                for (let id in messages) {
+                    const m = messages[id];
+                    const div = document.createElement('div');
+                    div.classList.add('msg', m.from === myUserTag ? 'sent' : 'received');
+                    div.innerText = m.text;
+                    box.appendChild(div);
+                }
+                box.scrollTop = box.scrollHeight;
+            });
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('message-input');
+            const text = input.value.trim();
+            if (!text || !activeChatUser) return;
+
+            const chatId = myUserTag < activeChatUser ? `${myUserTag}_${activeChatUser}` : `${activeChatUser}_${myUserTag}`;
+
+            // Закидываем сообщение прямо в облако Google
+            database.ref('chats/' + chatId).push({
+                from: myUserTag,
+                text: text,
+                timestamp: Date.now()
+            });
+
+            input.value = '';
+            setTimeout(renderMessages, 100);
+        }
+
+        document.getElementById('message-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+    </script>
+</body>
+</html>
